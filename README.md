@@ -53,13 +53,18 @@ Two non-obvious bits:
               └─────────────────┘  returned by get-context
 ```
 
-## What's intentionally not here
+## What I actually use
 
-These are skill *shapes*, not skill *implementations*. The CLI calls (`kb`, `cal`, `mail`) are placeholders for whatever knowledge graph / calendar / mail tooling you wire in. The structure — what runs, in what order, what gets persisted — is the durable part.
+The skill files use generic CLI names (`kb`, `cal`, `mail`) as placeholders so they're portable. Behind those placeholders, my own setup is:
 
-A few notes on adapting them:
+- **`kb` → Neotoma.** My own knowledge graph: entities (contacts, companies, projects, tasks, interactions, observations, decisions, `session_close`), CLI-first contract, single tenant per user. Everything mid-flight lives in Neotoma — the markdown files are git backups, not the source of truth. The skills are written against the Neotoma CLI verbs (`entities list`, `entities search`, `entities get`, `observations list`, `store`), so if you read `kb store ...` in a skill, picture `neotoma store ...`.
+- **`cal` + `mail` → `gws`.** Google Workspace CLI ([github.com/googleworkspace/cli](https://github.com/googleworkspace/cli), installed as `@googleworkspace/cli`), run as `gws calendar events list ...` and `gws gmail users messages list ...`. Same shape for both: a thin CLI over the Google Workspace APIs that returns JSON, easy to pipe into a skill step. Auth is per-user OAuth on dev machines and a Workspace service account with domain-wide delegation for unattended agents.
 
-- **The knowledge graph.** The skills assume a graph with `contact` / `company` / `project` / `task` / `interaction` / `observation` / `decision` / `session_close` entity types. Any equivalent shape works — adjust the entity-type names to match your schema.
+Both are stand-ins for the abstraction the skill cares about: a knowledge graph you can read/write deterministically, and a calendar + inbox you can query without clicking through a UI. Any equivalent shape works — adjust the CLI names and entity types to your stack.
+
+## Other notes on adapting them
+
+- **The knowledge-graph schema.** The skills assume entity types `contact` / `company` / `project` / `task` / `interaction` / `observation` / `decision` / `session_close`. If your graph names things differently, sed-replace.
 - **Tenant / user ID.** Every call is scoped by `${KB_USER_ID}`. Set this in your shell env. If you're multi-tenant, this is also your isolation boundary.
 - **The bullet budget.** The numbers (≤ 80 char qualifier, ≤ 8 bullets, ≤ 240 chars each) are tuned for a 5-line render block. If your render target is different, retune. The discipline is the point, not the exact numbers.
 - **Idempotency keys.** Every entity has a deterministic name pattern (`Observation: X YYYY-MM-DD`, `interaction-<slug>-<surface>-<message_id>`). This lets you re-run the close safely if it fails halfway.
